@@ -226,13 +226,14 @@ class QFile(object):
 		return self.sub_types
 
 
-	def auto_classify(self):
+	def auto_classify(self,ignore=None):
 		def _check_dir(dir_p):
 			if os.path.exists(dir_p): 
 				return 0
 			else:
 				return 1
-
+		if ignore in self.sub_types:
+			self.sub_types.remove(ignore) 
 		self._mkdir_all = len(self.sub_types)
 		mkdir_dirs =  map(self._mkdir,self.sub_types)
 		self._mkdir_counter = 0
