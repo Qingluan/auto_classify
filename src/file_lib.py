@@ -1,7 +1,6 @@
-import os
 
 from error_lib import *
-
+from pandas import DataFrame,Series
 
 class QFile(object):
 
@@ -225,6 +224,19 @@ class QFile(object):
 	def keys(self):
 		return self.sub_types
 
+	def _ignore(self,type_key):
+
+		def __remove_file_by_ignore(file_name):
+			file_gender  = QFile.get_file_type(file_name)
+			if type_key == file_gender: self.sub_file.remove(file_name)
+			return file_name
+
+		if type_key in self.sub_types:
+			self.ignore_type = type_key
+			self.sub_types.remove(type_key)
+
+			self.ignore_files = map(__remove_file_by_ignore , self.sub_file )
+
 
 	def auto_classify(self,ignore=None):
 		def _check_dir(dir_p):
@@ -233,7 +245,8 @@ class QFile(object):
 			else:
 				return 1
 		if ignore in self.sub_types:
-			self.sub_types.remove(ignore) 
+			self._ignore(ignore)
+
 		self._mkdir_all = len(self.sub_types)
 		mkdir_dirs =  map(self._mkdir,self.sub_types)
 		self._mkdir_counter = 0
@@ -314,6 +327,10 @@ class QFile(object):
 	def _move(self,file):
 		
 		type_f = QFile.get_file_type(file)
+		
+		# reutrn None if type is ignord by user
+		if type_f == self.ignore_type: return None
+
 		if type_f in self.mkdir_path: 
 			if self.walk  and type_f != "dir":
 				pass
@@ -321,7 +338,12 @@ class QFile(object):
 			else:
 
 				file_name = os.path.basename(file)
-				new_path = os.path.join(self.mkdir_path[type_f],file_name)
+				new_path = None
+				try:
+					new_path = os.path.join(self.mkdir_path[type_f],file_name)
+				except AttributeError:
+					print "error :"
+					print type_f,file_name
 				try:
 					os.rename(file, new_path)
 				except OSError,e:

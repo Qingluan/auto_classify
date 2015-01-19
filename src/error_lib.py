@@ -1,5 +1,6 @@
 import os
-
+import sys
+from time import *
 class QFilePathError(OSError):
 	def __init__(self,path,*args):
 		self.message = "path error : " + path+"\nother info :"  +"\n".join(args)

@@ -32,6 +32,9 @@ class QFile(object):
 		self.moved_path = []
 		self.rm_counter = {}
 
+		# signal 
+		self.ignore_type = None
+
 		## counter area
 		self._mkdir_counter = 0
 		self._mkdir_all = 0
@@ -228,13 +231,27 @@ class QFile(object):
 	def keys(self):
 		return self.sub_types
 
+	def _ignore(self,type_key):
+		def __remove_file_by_ignore(file_name):
+			file_gender  = QFile.get_file_type(file_name)
+			if type_key == file_gender: self.sub_file.remove(file_name)
+			return file_name
 
-	def auto_classify(self):
+		if type_key in self.sub_types:
+			self.sub_types.remove(type_key)
+			self.ignore_type = type_key
+
+			self.ignore_files = map(__remove_file_by_ignore , self.sub_file )
+
+
+	def auto_classify(self,ignore=None):
 		def _check_dir(dir_p):
 			if os.path.exists(dir_p): 
 				return 0
 			else:
 				return 1
+		if ignore in self.sub_types:
+			self._ignore(ignore)
 
 		self._mkdir_all = len(self.sub_types)
 		mkdir_dirs =  map(self._mkdir,self.sub_types)
@@ -248,6 +265,10 @@ class QFile(object):
 
 		self._move_all = len(self.sub_file)
 		map(self._move, self.sub_file)
+		
+		#remove a temp signal 
+		del self.ignore_type
+
 		self._move_counter = 0
 		self._move_call = progress.loading("simple")
 
@@ -316,6 +337,10 @@ class QFile(object):
 	def _move(self,file):
 		
 		type_f = QFile.get_file_type(file)
+
+		# reutrn None if type is ignord by user
+		if type_f == self.ignore_type: return None
+
 		if type_f in self.mkdir_path: 
 			if self.walk  and type_f != "dir":
 				pass
@@ -329,6 +354,20 @@ class QFile(object):
 				except OSError,e:
 					print e 
 					print "\n-- file : {} => {}\n".format(file,new_path) 
+					print "try again : "
+					
+					dir_path = "/".join(new_path.split("/")[:-1])
+					os.mkdir(dir_path)
+					print "mkdir : ",new_path
+					if os.path.exists(dir_path):
+						print "re-mkdir : ok"
+					print "try move ...",
+					try:
+						os.rename(file, new_path)
+					except OSError ,e:
+						print e 
+						print "try failed .. ,given up !!"
+
 				self.log( "{} => {}".format(file,new_path))
 				self.moved_path.append([new_path,file])
 		self.progress_log("move")
@@ -445,7 +484,7 @@ github : http://github.com/Qingluan
 	parser.add_argument('-c','--clear_path',default=None)
 	parser.add_argument('-r','--recursion',action="store_true",default=False)
 	parser.add_argument('-d','--debug',action="store_true",default=False)
-	
+	parser.add_argument('-i','--ignore',default=None)
 	# args,remind = parser.parse_known_args(args)
 	args = parser.parse_args()
 
@@ -476,8 +515,9 @@ if __name__ == "__main__":
 			print "remove empty finder ...",
 			f.check_empty(path,walk=True)
 			print "ok"
-			print "start classify ",
-			f.auto_classify()	
+			print "start classify ...\n"
+			print "ignore type : {}".format(args.ignore)
+			f.auto_classify(ignore=args.ignore)	
 			print "ok"	
 			print "remove empty finder ...",
 			f.check_empty(path,walk=True)
